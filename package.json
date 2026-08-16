@@ -13,8 +13,8 @@
   "main": "./extension.js",
   "contributes": {
     "commands": [{
-      "command": "dev-arch.helloWorld",
-      "title": "Hello World"
+      "command": "dev-arch.createProject",
+      "title": "dev-arch: Create Project"
     }]
   },
   "scripts": {
