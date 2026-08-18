@@ -8,7 +8,7 @@ const setupGithub= require('./setup/github');
 const setupTailwind= require('./setup/tailwind');
 
 async function run(options) {
-    const { name, type, projectPath, git, github, tailwind, full, visibility } = options;
+    const { name, type, projectPath, git, github, tailwind, full, visibility, typescript } = options;
 
     const fullPath = path.join(projectPath, name);
 
@@ -17,7 +17,7 @@ async function run(options) {
     if (fs.existsSync(fullPath)) throw new Error(`Directory '${name}' already exists`);
 
     fs.mkdirSync(fullPath, { recursive: true});
-    await createProject(type, fullPath, full);
+    await createProject(type, fullPath, full, typescript);
 
     if (tailwind) await setupTailwind(type, fullPath);
 

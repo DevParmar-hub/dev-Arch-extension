@@ -10,13 +10,13 @@ async function createFullstackProject(projectPath, full){
     fs.mkdirSync(frontendPath);
     fs.mkdirSync(backendPath);
 
-    execSync('npx create-vite .',{
+    execSync(`npx create-vite . --template ${full.typescript ? 'react-ts' : 'react'}`, {
         cwd: frontendPath,
-        stdio: 'inherit'
+        stdio: 'pipe'
     });
     execSync('npm install', {
         cwd:frontendPath,
-        stdio: 'inherit'
+        stdio: 'pipe'
     });
 
     createNodeProject(backendPath, full);

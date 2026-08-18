@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const {run} = require('./src/cli/index');
 
 function activate(context) {
+	const outputChannel = vscode.window.createOutputChannel('dev-arch');
 	const disposable = vscode.commands.registerCommand('dev-arch.createProject', async ()=>{
 		const panel = vscode.window.createWebviewPanel(
 			'devArch',
@@ -32,7 +33,9 @@ function activate(context) {
 						github:message.github,
 						tailwind:message.tailwind,
 						full:message.full,
-						visibility:message.visibility
+						visibility:message.visibility,
+						typescript:message.typescript,
+						outputChannel
 					});
 
 					vscode.window.showInformationMessage(`Project '${message.name}' created successfully!`);	
@@ -76,6 +79,14 @@ function getWebviewContent() {
   <option value="web">Web (HTML/CSS/JS)</option>
 </select>
 
+<div id="language-row">
+<label>Language</label>
+<select id="language">
+  <option value="js">JavaScript</option>
+  <option value="ts">TypeScript</option>
+</select>
+</div>
+
 <label>Visibility</label>
 <select id="visibility">
   <option value="public">Public</option>
@@ -91,6 +102,16 @@ function getWebviewContent() {
 
 <script>
   const vscode = acquireVsCodeApi();
+  const typeSelect = document.getElementById('type');
+const languageRow = document.getElementById('language-row');
+
+function toggleLanguage() {
+    const type = typeSelect.value;
+    languageRow.style.display = (type === 'react' || type === 'fullstack') ? 'block' : 'none';
+}
+
+typeSelect.addEventListener('change', toggleLanguage);
+toggleLanguage(); // run on load
   function submit() {
     vscode.postMessage({
       command: 'create',
@@ -100,7 +121,8 @@ function getWebviewContent() {
       github: document.getElementById('github').checked,
       tailwind: document.getElementById('tailwind').checked,
       full: document.getElementById('full').checked,
-      visibility: document.getElementById('visibility').value
+      visibility: document.getElementById('visibility').value,
+	  typescript: document.getElementById('language').value === 'ts',
     });
   }
 </script>
