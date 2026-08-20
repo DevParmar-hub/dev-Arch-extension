@@ -9,7 +9,7 @@ function setupTailwind(type, projectPath){
 
     execSync('npm install tailwindcss @tailwindcss/vite',{
         cwd: targetPath,
-        stdio: 'inherit'
+        stdio: 'pipe'
     });
 
     const vitePath = path.join(targetPath, 'vite.config.js');
