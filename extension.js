@@ -1,55 +1,85 @@
 const vscode = require('vscode');
 const {run} = require('./src/cli/index');
 
-function activate(context) {
-	const outputChannel = vscode.window.createOutputChannel('dev-arch');
-	const disposable = vscode.commands.registerCommand('dev-arch.createProject', async ()=>{
-		const panel = vscode.window.createWebviewPanel(
-			'devArch',
-			'dev-arch',
-			vscode.ViewColumn.One,
-			{ enableScripts: true}
-		);
-		panel.webview.html = getWebviewContent();
-panel.webview.onDidReceiveMessage(async message => {
-    if (message.command === 'create') {
-        const uri = await vscode.window.showOpenDialog({
-            canSelectFiles: false,
-            canSelectFolders: true,
-            canSelectMany: false,
-            openLabel: 'Select project location'
+async function activate(context) {
+    const disposable = vscode.commands.registerCommand('dev-arch.createProject', async () => {
+        const panel = vscode.window.createWebviewPanel(
+            'devArch',
+            'dev-arch',
+            vscode.ViewColumn.One,
+            { enableScripts: true }
+        );
+
+        panel.webview.html = getWebviewContent();
+
+        panel.webview.onDidReceiveMessage(async message => {
+            if (message.command === 'getToken') {
+                const existing = await context.secrets.get('devarch-github-token');
+                panel.webview.postMessage({ type: 'tokenStatus', hasToken: !!existing });
+            }
+
+            if (message.command === 'saveToken') {
+                await context.secrets.store('devarch-github-token', message.token);
+                panel.webview.postMessage({ type: 'tokenSaved' });
+            }
+
+            if (message.command === 'deleteToken') {
+                await context.secrets.delete('devarch-github-token');
+                panel.webview.postMessage({ type: 'tokenDeleted' });
+            }
+
+            if (message.command === 'openTokenPage') {
+                vscode.env.openExternal(vscode.Uri.parse('https://github.com/settings/tokens/new?scopes=repo&description=dev-arch'));
+            }
+
+            if (message.command === 'create') {
+                const uri = await vscode.window.showOpenDialog({
+                    canSelectFiles: false,
+                    canSelectFolders: true,
+                    canSelectMany: false,
+                    openLabel: 'Select project location'
+                });
+
+                if (!uri || uri.length === 0) return;
+
+                const projectPath = uri[0].fsPath;
+
+                let token = null;
+                if (message.github) {
+                    token = await context.secrets.get('devarch-github-token');
+                    if (!token) {
+                        panel.webview.postMessage({ type: 'needToken' });
+                        return;
+                    }
+                }
+
+                panel.webview.postMessage({ type: 'progress', message: 'Setting up project structure...' });
+
+                try {
+                    const fullPath = await run({
+                        name: message.name,
+                        type: message.type,
+                        projectPath,
+                        git: message.git,
+                        github: message.github,
+                        tailwind: message.tailwind,
+                        full: message.full,
+                        visibility: message.visibility,
+                        typescript: message.typescript,
+                        token
+                    });
+
+                    panel.webview.postMessage({ type: 'success', path: fullPath });
+                    vscode.window.showInformationMessage(`Project '${message.name}' created successfully!`);
+                } catch (err) {
+                    panel.webview.postMessage({ type: 'error', message: err.message });
+                    vscode.window.showErrorMessage(`Error: ${err.message}`);
+                }
+            }
         });
+    });
 
-        if (!uri || uri.length === 0) return;
-
-        const projectPath = uri[0].fsPath;
-
-        panel.webview.postMessage({ type: 'progress', message: 'Setting up project structure...' });
-
-        try {
-            const fullPath = await run({
-                name: message.name,
-                type: message.type,
-                projectPath,
-                git: message.git,
-                github: message.github,
-                tailwind: message.tailwind,
-                full: message.full,
-                visibility: message.visibility,
-                typescript: message.typescript
-            });
-
-            panel.webview.postMessage({ type: 'success', path: fullPath });
-            vscode.window.showInformationMessage(`Project '${message.name}' created successfully!`);
-        } catch (err) {
-            panel.webview.postMessage({ type: 'error', message: err.message });
-            vscode.window.showErrorMessage(`Error: ${err.message}`);
-        }
-    }
-});
-	});
-
-	context.subscriptions.push(disposable);
+    context.subscriptions.push(disposable);
 }
 
 function getWebviewContent() {

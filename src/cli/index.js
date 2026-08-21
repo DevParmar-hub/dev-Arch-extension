@@ -8,7 +8,7 @@ const setupGithub= require('./setup/github');
 const setupTailwind= require('./setup/tailwind');
 
 async function run(options) {
-    const { name, type, projectPath, git, github, tailwind, full, visibility, typescript } = options;
+const { name, type, projectPath, git, github, tailwind, full, visibility, typescript, token } = options;
 
     const fullPath = path.join(projectPath, name);
 
@@ -23,7 +23,7 @@ async function run(options) {
 
     if (git || github) await setupGit(type, fullPath);
 
-    if (github) await setupGithub(name, fullPath, visibility);
+    if (github) await setupGithub(name, fullPath, visibility, token);
 
     return fullPath;
 }
