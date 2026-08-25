@@ -17,7 +17,11 @@ function setupGit(type, projectPath){
     fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignore);
 
     execSync('git add .',{ cwd: projectPath, stdio: 'inherit'});
-    execSync('git commit -m "Initial commit"', { cwd: projectPath, stdio: 'inherit'});
+    try {
+        execSync('git commit -m "Initial commit"', { cwd: projectPath, stdio: 'pipe' });
+    } catch (err) {
+        throw new Error('Git commit failed. Make sure git user.name and user.email are configured.');
+    }
 
 }
 

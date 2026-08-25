@@ -6,25 +6,64 @@ const createProject = require('./projects/index');
 const setupGit= require('./setup/git');
 const setupGithub= require('./setup/github');
 const setupTailwind= require('./setup/tailwind');
+const { validateProjectName, checkNode, checkGit } = require('./utils');
 
 async function run(options) {
 const { name, type, projectPath, git, github, tailwind, full, visibility, typescript, token } = options;
 
+    validateProjectName(name);
+    
+    if(['react','node','fullstack'].includes(type)){
+        checkNode();
+    }
+
+    if(git || github){
+        checkGit();
+    }
+
     const fullPath = path.join(projectPath, name);
 
-    if (!name) throw new Error('Project name is required');
-    if (!type) throw new Error('Project type is required');
-    if (fs.existsSync(fullPath)) throw new Error(`Directory '${name}' already exists`);
+    if(fs.existsSync(fullPath)){
+        throw new Error(`A folder named '${name}' already exists in this location.`);
+    }
 
-    fs.mkdirSync(fullPath, { recursive: true});
-    await createProject(type, fullPath, full, typescript);
+    try{
+        fs.mkdirSync(fullPath, { rucursive: true });
+    }catch(err){
 
-    if (tailwind) await setupTailwind(type, fullPath);
+        throw new Error(`Could not create project folder. Check disk space and permissions.`);
+    }
 
-    if (git || github) await setupGit(type, fullPath);
+    try{
+        await createProject(type,fullPath,full,typescript);
+    }catch(err){
+        fs.rmSync(fullPath, { recursive: true, force: true});
+        throw new Error(`Project scaffolding failed: ${err.message}`);
+    }
+   
+ if (tailwind) {
+        try {
+            await setupTailwind(type, fullPath);
+        } catch (err) {
+            throw new Error(`Tailwind setup failed: ${err.message}`);
+        }
+    }
 
-    if (github) await setupGithub(name, fullPath, visibility, token);
+    if (git || github) {
+        try {
+            await setupGit(type, fullPath);
+        } catch (err) {
+            throw new Error(`Git setup failed: ${err.message}`);
+        }
+    }
 
+    if (github) {
+        try {
+            await setupGithub(name, fullPath, visibility, token);
+        } catch (err) {
+            throw new Error(`GitHub repo creation failed: ${err.message}`);
+        }
+    }
     return fullPath;
 }
 

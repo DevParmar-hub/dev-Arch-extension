@@ -83,42 +83,36 @@ async function activate(context) {
 }
 
 function getWebviewContent() {
-	return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--vscode-font-family); padding: 24px; color: var(--vscode-foreground); background: var(--vscode-editor-background); }
-  
   h1 { font-size: 16px; font-weight: 600; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--vscode-panel-border); }
-  
   .section { margin-bottom: 20px; }
   .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--vscode-descriptionForeground); margin-bottom: 10px; }
-  
   label { display: block; margin-bottom: 4px; font-size: 13px; }
   input, select { width: 100%; padding: 6px 8px; margin-bottom: 12px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; font-size: 13px; }
   input:focus, select:focus { outline: 1px solid var(--vscode-focusBorder); }
-  
   .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
   .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
   .checkbox-row input { width: auto; margin: 0; cursor: pointer; }
-  .checkbox-row.disabled { opacity: 0.4; pointer-events: none; }
-
   .btn { width: 100%; padding: 8px 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 20px; }
   .btn:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
+  .btn-secondary { width: 100%; padding: 6px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 8px; }
   .progress { display: none; margin-top: 16px; }
   .progress-bar { height: 2px; background: var(--vscode-panel-border); border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; width: 0%; background: var(--vscode-progressBar-background); border-radius: 2px; transition: width 0.3s ease; animation: indeterminate 1.5s ease infinite; }
+  .progress-fill { height: 100%; background: var(--vscode-progressBar-background); border-radius: 2px; animation: indeterminate 1.5s ease infinite; }
   @keyframes indeterminate { 0% { transform: translateX(-100%); width: 60%; } 100% { transform: translateX(200%); width: 60%; } }
   .progress-text { font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 8px; }
-
   .success { display: none; margin-top: 16px; padding: 12px; background: var(--vscode-inputValidation-infoBackground); border: 1px solid var(--vscode-inputValidation-infoBorder); border-radius: 4px; }
   .success-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
   .success-path { font-size: 11px; color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family); word-break: break-all; }
-
   .error { display: none; margin-top: 16px; padding: 12px; background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder); border-radius: 4px; font-size: 13px; }
+  .token-area { display: none; margin-top: 12px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; }
+  .token-hint { font-size: 12px; color: var(--vscode-descriptionForeground); margin-bottom: 10px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -153,9 +147,30 @@ function getWebviewContent() {
     <div class="checkbox-row"><input type="checkbox" id="git" /><label>Initialize Git</label></div>
     <div class="checkbox-row"><input type="checkbox" id="github" /><label>Create GitHub Repo</label></div>
   </div>
+
+  <div class="token-area" id="github-token-area">
+    <div id="token-section">
+      <div class="token-hint">
+        A GitHub Personal Access Token is required.<br><br>
+        <strong>How to get one:</strong><br>
+        1. Click the button below to open GitHub<br>
+        2. Give it a name (e.g. "dev-arch")<br>
+        3. Make sure "repo" scope is checked<br>
+        4. Click "Generate token" and copy it<br>
+        5. Paste it below
+      </div>
+      <button class="btn-secondary" onclick="vscode.postMessage({ command: 'openTokenPage' })">Open GitHub Token Page</button>
+      <input type="password" id="token-input" placeholder="Paste your token here" />
+      <button class="btn-secondary" onclick="saveToken()">Save Token Securely</button>
+    </div>
+    <div id="token-saved" style="display:none;">
+      <div class="token-hint">✓ GitHub token saved securely in OS keychain.</div>
+      <button class="btn-secondary" onclick="deleteToken()">Remove Token</button>
+    </div>
+  </div>
 </div>
 
-<div class="section" id="visibility-row">
+<div class="section" id="visibility-row" style="display:none;">
   <div class="section-title">Repository</div>
   <label>Visibility</label>
   <select id="visibility">
@@ -199,11 +214,51 @@ function getWebviewContent() {
   }
 
   typeSelect.addEventListener('change', toggleOptions);
-  githubCheckbox.addEventListener('change', toggleOptions);
+
+  githubCheckbox.addEventListener('change', () => {
+    toggleOptions();
+    if (githubCheckbox.checked) {
+      document.getElementById('github-token-area').style.display = 'block';
+      vscode.postMessage({ command: 'getToken' });
+    } else {
+      document.getElementById('github-token-area').style.display = 'none';
+    }
+  });
+
   toggleOptions();
 
   window.addEventListener('message', event => {
     const msg = event.data;
+
+    if (msg.type === 'tokenStatus') {
+      if (msg.hasToken) {
+        document.getElementById('token-section').style.display = 'none';
+        document.getElementById('token-saved').style.display = 'block';
+      } else {
+        document.getElementById('token-section').style.display = 'block';
+        document.getElementById('token-saved').style.display = 'none';
+      }
+    }
+
+    if (msg.type === 'tokenSaved') {
+      document.getElementById('token-input').value = '';
+      document.getElementById('token-section').style.display = 'none';
+      document.getElementById('token-saved').style.display = 'block';
+    }
+
+    if (msg.type === 'tokenDeleted') {
+      document.getElementById('token-section').style.display = 'block';
+      document.getElementById('token-saved').style.display = 'none';
+    }
+
+    if (msg.type === 'needToken') {
+      document.getElementById('github-token-area').style.display = 'block';
+      document.getElementById('token-section').style.display = 'block';
+      createBtn.disabled = false;
+      createBtn.textContent = 'Create Project';
+      document.getElementById('progress').style.display = 'none';
+    }
+
     if (msg.type === 'success') {
       document.getElementById('progress').style.display = 'none';
       document.getElementById('success').style.display = 'block';
@@ -211,19 +266,32 @@ function getWebviewContent() {
       createBtn.disabled = false;
       createBtn.textContent = 'Create Another';
     }
+
     if (msg.type === 'error') {
       document.getElementById('progress').style.display = 'none';
       document.getElementById('error').style.display = 'block';
       document.getElementById('error').textContent = msg.message;
       createBtn.disabled = false;
+      createBtn.textContent = 'Create Project';
     }
+
     if (msg.type === 'progress') {
       document.getElementById('progress-text').textContent = msg.message;
     }
   });
 
+  function saveToken() {
+    const token = document.getElementById('token-input').value.trim();
+    if (!token) { alert('Please paste your token first'); return; }
+    vscode.postMessage({ command: 'saveToken', token });
+  }
+
+  function deleteToken() {
+    vscode.postMessage({ command: 'deleteToken' });
+  }
+
   function submit() {
-    const name = document.getElementById('name').value;
+    const name = document.getElementById('name').value.trim();
     if (!name) { alert('Please enter a project name'); return; }
 
     createBtn.disabled = true;
@@ -249,6 +317,6 @@ function getWebviewContent() {
 </html>`;
 }
 
-function deactivate(){}
+function deactivate() {}
 
-module.exports = {activate, deactivate};
+module.exports = { activate, deactivate };
