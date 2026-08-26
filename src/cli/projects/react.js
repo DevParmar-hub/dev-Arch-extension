@@ -3,7 +3,7 @@ const path = require('path');
 
 async function createReactProject(projectPath, typescript){
     const template = typescript ? 'react-ts' : 'react';
-    execSync(`npx create-vite . --template ${template}`,{
+    execSync(`npx -y create-vite . --template ${template}`, {
         cwd: projectPath,
         stdio: 'pipe'
     });

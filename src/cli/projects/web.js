@@ -1,8 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const name = path.basename(projectPath);
 
 function createWebProject(projectPath){
+    const name = path.basename(projectPath);
+
+    
     fs.writeFileSync(path.join(projectPath, 'index.html'),
     `<!DOCTYPE html>
 <html lang="en">

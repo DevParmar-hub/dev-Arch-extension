@@ -7,7 +7,6 @@ function setupTailwind(type, projectPath) {
         ? path.join(projectPath, 'frontend')
         : projectPath;
 
-   
     const viteConfigJs = path.join(targetPath, 'vite.config.js');
     const viteConfigTs = path.join(targetPath, 'vite.config.ts');
     const viteConfigPath = fs.existsSync(viteConfigTs) ? viteConfigTs : viteConfigJs;
@@ -27,9 +26,13 @@ function setupTailwind(type, projectPath) {
 
     let viteConfig = fs.readFileSync(viteConfigPath, 'utf8');
     viteConfig = `import tailwindcss from '@tailwindcss/vite'\n` + viteConfig;
-    viteConfig = viteConfig.replace('react()', 'react(),\n    tailwindcss()');
-    fs.writeFileSync(viteConfigPath, viteConfig);
-    
+
+    const updatedConfig = viteConfig.replace('react()', 'react(),\n    tailwindcss()');
+    if (updatedConfig === viteConfig) {
+        throw new Error('Could not patch vite.config — react() plugin call not found. Tailwind plugin was not registered.');
+    }
+    fs.writeFileSync(viteConfigPath, updatedConfig);
+
     const indexCssPath = path.join(targetPath, 'src', 'index.css');
     if (fs.existsSync(indexCssPath)) {
         fs.writeFileSync(indexCssPath, "@import 'tailwindcss';\n");

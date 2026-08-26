@@ -5,7 +5,6 @@ async function setupGithub(name, projectPath, visibility, token) {
         throw new Error('GitHub token is missing. Please add your token in the extension.');
     }
 
-    // Verify token first
     const verifyResponse = await fetch('https://api.github.com/user', {
         headers: {
             'Authorization': `token ${token}`,
@@ -17,12 +16,11 @@ async function setupGithub(name, projectPath, visibility, token) {
         throw new Error('GitHub token is invalid or expired. Please update your token.');
     }
     if (verifyResponse.status === 403) {
-        throw new Error('GitHub token does not have the required permissions. Make sure the "repo" scope is checked.');
+        throw new Error('GitHub token does not have the required permissions or is rate limited. Make sure the "repo" scope is checked.');
     }
 
     const user = await verifyResponse.json();
 
-    // Create repo
     const response = await fetch('https://api.github.com/user/repos', {
         method: 'POST',
         headers: {
@@ -45,18 +43,19 @@ async function setupGithub(name, projectPath, visibility, token) {
 
     const repo = await response.json();
 
-    // Push using token in URL
+    const auth = Buffer.from(`x-token:${token}`).toString('base64');
+
     try {
-        execSync(`git remote add origin https://${token}@github.com/${repo.full_name}.git`, {
+        execSync(`git remote add origin https://github.com/${repo.full_name}.git`, {
             cwd: projectPath,
             stdio: 'pipe'
         });
-        execSync('git push -u origin HEAD', {
+        execSync(`git -c http.extraHeader="Authorization: Basic ${auth}" push -u origin HEAD`, {
             cwd: projectPath,
             stdio: 'pipe'
         });
     } catch (err) {
-        throw new Error(`Failed to push to GitHub: ${err.message}`);
+        throw new Error(`Failed to push to GitHub. An empty repo was created at ${repo.html_url} — you may need to delete it and try again. Error: ${err.message}`);
     }
 
     return repo.html_url;

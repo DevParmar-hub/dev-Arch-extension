@@ -86,6 +86,7 @@ function getWebviewContent() {
     return `<!DOCTYPE html>
 <html>
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--vscode-font-family); padding: 24px; color: var(--vscode-foreground); background: var(--vscode-editor-background); }
@@ -207,10 +208,18 @@ function getWebviewContent() {
     const type = typeSelect.value;
     const isReactOrFullstack = type === 'react' || type === 'fullstack';
     const isNodeOrFullstack = type === 'node' || type === 'fullstack';
+
     languageRow.style.display = isReactOrFullstack ? 'block' : 'none';
     tailwindRow.style.display = isReactOrFullstack ? 'flex' : 'none';
     fullRow.style.display = isNodeOrFullstack ? 'flex' : 'none';
     visibilityRow.style.display = githubCheckbox.checked ? 'block' : 'none';
+
+    if (!isReactOrFullstack) {
+      document.getElementById('tailwind').checked = false;
+    }
+    if (!isNodeOrFullstack) {
+      document.getElementById('full').checked = false;
+    }
   }
 
   typeSelect.addEventListener('change', toggleOptions);

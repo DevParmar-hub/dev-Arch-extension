@@ -9,6 +9,14 @@
   "categories": [
     "Other"
   ],
+  "publisher": "DevParmar",
+"repository": {
+    "type": "git",
+    "url": "https://github.com/DevParmar-hub/dev-arch-ext"
+},
+"license": "MIT",
+"keywords": ["scaffolding", "project setup", "react", "node", "python", "developer tools"],
+"icon": "icon.png",
   "activationEvents": [],
   "main": "./extension.js",
   "contributes": {

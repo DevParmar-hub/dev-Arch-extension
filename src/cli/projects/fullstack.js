@@ -10,7 +10,7 @@ async function createFullstackProject(projectPath, full, typescript){
     fs.mkdirSync(frontendPath);
     fs.mkdirSync(backendPath);
 
-    execSync(`npx create-vite . --template ${typescript ? 'react-ts' : 'react'}`, {
+    execSync(`npx -y create-vite . --template ${typescript ? 'react-ts' : 'react'}`, {
         cwd: frontendPath,
         stdio: 'pipe'
     });

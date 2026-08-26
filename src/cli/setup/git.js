@@ -5,24 +5,22 @@ const path = require('path');
 const gitignoreTemplates = {
     python: '__pycache__/\n*.pyc\n.env\n',
     web: 'node_modules/\ndist/\n.env\n',
-    react: 'node_modules/\ndist/\n.env\n.env.local\n',
-    node: 'node_modules/\n.env\ndist/\nuploads/*\n!uploads/.gitkeep\n',
-    fullstack: 'node_modules/\n.env\ndist/\nuploads/*\n!uploads/.gitkeep\n'
 };
 
-function setupGit(type, projectPath){
-    execSync('git init', { cwd: projectPath, stdio: 'inherit'});
+function setupGit(type, projectPath) {
+    execSync('git init', { cwd: projectPath, stdio: 'pipe' });
 
-    const gitignore = gitignoreTemplates[type] || '';
-    fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignore);
+    if (gitignoreTemplates[type]) {
+        fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignoreTemplates[type]);
+    }
 
-    execSync('git add .',{ cwd: projectPath, stdio: 'inherit'});
+    execSync('git add .', { cwd: projectPath, stdio: 'pipe' });
+
     try {
         execSync('git commit -m "Initial commit"', { cwd: projectPath, stdio: 'pipe' });
     } catch (err) {
         throw new Error('Git commit failed. Make sure git user.name and user.email are configured.');
     }
-
 }
 
 module.exports = setupGit;
