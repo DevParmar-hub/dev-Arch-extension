@@ -160,9 +160,9 @@ function getWebviewContent() {
         4. Click "Generate token" and copy it<br>
         5. Paste it below
       </div>
-      <button class="btn-secondary" onclick="vscode.postMessage({ command: 'openTokenPage' })">Open GitHub Token Page</button>
+      <button onclick="vscode.postMessage({ command: 'openTokenPage' })" style="width:100%; margin-bottom:8px; padding: 6px; background: #238636; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">Open GitHub Token Page</button>
       <input type="password" id="token-input" placeholder="Paste your token here" />
-      <button class="btn-secondary" onclick="saveToken()">Save Token Securely</button>
+      <button onclick="deleteToken()" style="width:100%; padding: 6px; background: #da3633; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">Remove Token</button>
     </div>
     <div id="token-saved" style="display:none;">
       <div class="token-hint">✓ GitHub token saved securely in OS keychain.</div>
