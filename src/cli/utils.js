@@ -2,15 +2,10 @@ const { execSync } = require('child_process');
 
 function commandExists(cmd) {
     try {
-        execSync(`where ${cmd}`, { stdio: 'pipe' });
+        execSync(`${cmd} --version`, { stdio: 'pipe' });
         return true;
     } catch {
-        try {
-            execSync(`which ${cmd}`, { stdio: 'pipe' });
-            return true;
-        } catch {
-            return false;
-        }
+        return false;
     }
 }
 
@@ -27,25 +22,29 @@ function validateProjectName(name) {
 }
 
 function checkNode() {
-    if (!commandExists('node')) {
-        throw new Error('Node.js is not installed. Download it from https://nodejs.org');
+    try {
+        execSync('node --version', { stdio: 'pipe' });
+    } catch {
+        throw new Error('Node.js is not installed or not in PATH. Download it from https://nodejs.org — if already installed, restart VS Code.');
     }
-    if (!commandExists('npm')) {
-        throw new Error('npm is not installed. It usually comes with Node.js — reinstall from https://nodejs.org');
+    try {
+        execSync('npm --version', { stdio: 'pipe' });
+    } catch {
+        throw new Error('npm is not installed or not in PATH. Restart VS Code after installing Node.js.');
     }
 }
 
 function checkGit() {
-    if (!commandExists('git')) {
-        throw new Error('Git is not installed. Download it from https://git-scm.com');
+    try {
+        execSync('git --version', { stdio: 'pipe' });
+    } catch {
+        throw new Error('Git is not installed or not in PATH. Download it from https://git-scm.com — if already installed, restart VS Code.');
     }
-
     try {
         execSync('git config user.name', { stdio: 'pipe' });
     } catch {
         throw new Error('Git user.name not configured. Run: git config --global user.name "Your Name"');
     }
-
     try {
         execSync('git config user.email', { stdio: 'pipe' });
     } catch {

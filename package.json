@@ -2,7 +2,7 @@
   "name": "dev-arch",
   "displayName": "dev-arch",
   "description": "Project scaffolding tool for developers",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.125.0"
   },
@@ -12,7 +12,7 @@
   "publisher": "DevParmar",
 "repository": {
     "type": "git",
-    "url": "https://github.com/DevParmar-hub/dev-arch-ext"
+    "url": "https://github.com/DevParmar-hub/dev-Arch-extstension"
 },
 "license": "MIT",
 "keywords": ["scaffolding", "project setup", "react", "node", "python", "developer tools"],

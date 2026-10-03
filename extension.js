@@ -72,8 +72,10 @@ async function activate(context) {
                     panel.webview.postMessage({ type: 'success', path: fullPath });
                     vscode.window.showInformationMessage(`Project '${message.name}' created successfully!`);
                 } catch (err) {
-                    panel.webview.postMessage({ type: 'error', message: err.message });
-                    vscode.window.showErrorMessage(`Error: ${err.message}`);
+                    const msg = err.message || JSON.stringify(err) || 'Unknown error occurred';
+                    panel.webview.postMessage({ type: 'error', message: msg });
+                    vscode.window.showErrorMessage(`Error: ${msg}`);
+                    console.error('devArch error:', err);
                 }
             }
         });
@@ -89,110 +91,439 @@ function getWebviewContent() {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--vscode-font-family); padding: 24px; color: var(--vscode-foreground); background: var(--vscode-editor-background); }
-  h1 { font-size: 16px; font-weight: 600; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--vscode-panel-border); }
-  .section { margin-bottom: 20px; }
-  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--vscode-descriptionForeground); margin-bottom: 10px; }
-  label { display: block; margin-bottom: 4px; font-size: 13px; }
-  input, select { width: 100%; padding: 6px 8px; margin-bottom: 12px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; font-size: 13px; }
-  input:focus, select:focus { outline: 1px solid var(--vscode-focusBorder); }
-  .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
-  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
-  .checkbox-row input { width: auto; margin: 0; cursor: pointer; }
-  .btn { width: 100%; padding: 8px 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 20px; }
-  .btn:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-secondary { width: 100%; padding: 6px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 8px; }
-  .progress { display: none; margin-top: 16px; }
-  .progress-bar { height: 2px; background: var(--vscode-panel-border); border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--vscode-progressBar-background); border-radius: 2px; animation: indeterminate 1.5s ease infinite; }
-  @keyframes indeterminate { 0% { transform: translateX(-100%); width: 60%; } 100% { transform: translateX(200%); width: 60%; } }
-  .progress-text { font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 8px; }
-  .success { display: none; margin-top: 16px; padding: 12px; background: var(--vscode-inputValidation-infoBackground); border: 1px solid var(--vscode-inputValidation-infoBorder); border-radius: 4px; }
-  .success-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .success-path { font-size: 11px; color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family); word-break: break-all; }
-  .error { display: none; margin-top: 16px; padding: 12px; background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder); border-radius: 4px; font-size: 13px; }
-  .token-area { display: none; margin-top: 12px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; }
-  .token-hint { font-size: 12px; color: var(--vscode-descriptionForeground); margin-bottom: 10px; line-height: 1.6; }
+
+  body {
+    font-family: var(--vscode-font-family);
+    padding: 32px 24px;
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .header {
+    margin-bottom: 28px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+
+  .header p {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .card {
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: var(--vscode-foreground);
+  }
+
+  input[type="text"], input[type="password"], select {
+    width: 100%;
+    padding: 7px 10px;
+    margin-bottom: 14px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: var(--vscode-font-family);
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"]:focus, input[type="password"]:focus, select:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+  }
+
+  input[type="text"]:last-child, select:last-child {
+    margin-bottom: 0;
+  }
+
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .checkbox-row:hover {
+    background: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-panel-border);
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--vscode-focusBorder);
+  }
+
+  .checkbox-row label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .token-area {
+    display: none;
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+  }
+
+  .token-hint {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 12px;
+    line-height: 1.7;
+  }
+
+  .token-hint strong {
+    color: var(--vscode-foreground);
+  }
+
+  .btn-github {
+    width: 100%;
+    padding: 7px 12px;
+    margin-bottom: 10px;
+    background: #238636;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .btn-github:hover {
+    background: #2ea043;
+    transform: translateY(-1px);
+  }
+
+  .btn-save {
+    width: 100%;
+    padding: 7px 12px;
+    margin-bottom: 8px;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .btn-save:hover {
+    background: var(--vscode-button-hoverBackground);
+    transform: translateY(-1px);
+  }
+
+  .btn-danger {
+    width: 100%;
+    padding: 7px 12px;
+    background: transparent;
+    color: #f85149;
+    border: 1px solid #f8514940;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+
+  .btn-danger:hover {
+    background: #da363320;
+    border-color: #f85149;
+    transform: translateY(-1px);
+  }
+
+  .token-saved-state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .token-badge {
+    font-size: 11px;
+    color: #3fb950;
+    background: #3fb95015;
+    border: 1px solid #3fb95030;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-weight: 500;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 16px;
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--vscode-button-hoverBackground);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .progress {
+    display: none;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+  }
+
+  .progress-bar {
+    height: 2px;
+    background: var(--vscode-panel-border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--vscode-progressBar-background);
+    border-radius: 2px;
+    animation: indeterminate 1.5s ease infinite;
+  }
+
+  @keyframes indeterminate {
+    0% { transform: translateX(-100%); width: 60%; }
+    100% { transform: translateX(200%); width: 60%; }
+  }
+
+  .progress-text {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .success {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    background: #3fb95010;
+    border: 1px solid #3fb95040;
+    border-radius: 8px;
+    animation: popIn 0.25s ease;
+  }
+
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0.97); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .success-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .success-icon {
+    font-size: 16px;
+  }
+
+  .success-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3fb950;
+  }
+
+  .success-path {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    font-family: var(--vscode-editor-font-family);
+    word-break: break-all;
+    padding: 6px 8px;
+    background: var(--vscode-editor-background);
+    border-radius: 4px;
+    border: 1px solid var(--vscode-panel-border);
+  }
+
+  .error {
+    display: none;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: #f8514910;
+    border: 1px solid #f8514940;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #f85149;
+    line-height: 1.6;
+    animation: popIn 0.25s ease;
+  }
+
+  #language-row { margin-top: 2px; }
 </style>
 </head>
 <body>
-<h1>dev-arch — Create Project</h1>
+<div class="container">
 
-<div class="section">
-  <div class="section-title">Project</div>
-  <label>Name</label>
-  <input type="text" id="name" placeholder="my-project" />
-  <label>Type</label>
-  <select id="type">
-    <option value="react">React + Vite</option>
-    <option value="fullstack">Fullstack (React + Node)</option>
-    <option value="node">Node.js Backend</option>
-    <option value="python">Python</option>
-    <option value="web">Web (HTML/CSS/JS)</option>
-  </select>
-  <div id="language-row">
-    <label>Language</label>
-    <select id="language">
-      <option value="js">JavaScript</option>
-      <option value="ts">TypeScript</option>
+  <div class="header">
+    <h1>dev-arch</h1>
+    <p>Development Environment Architect</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Project</div>
+    <label>Name</label>
+    <input type="text" id="name" placeholder="my-project" />
+    <label>Type</label>
+    <select id="type">
+      <option value="react">React + Vite</option>
+      <option value="fullstack">Fullstack (React + Node)</option>
+      <option value="node">Node.js Backend</option>
+      <option value="python">Python</option>
+      <option value="web">Web (HTML/CSS/JS)</option>
+    </select>
+    <div id="language-row">
+      <label>Language</label>
+      <select id="language">
+        <option value="js">JavaScript</option>
+        <option value="ts">TypeScript</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Options</div>
+    <div class="checkbox-group">
+      <div class="checkbox-row" id="tailwind-row">
+        <input type="checkbox" id="tailwind" />
+        <label for="tailwind">Add Tailwind CSS</label>
+      </div>
+      <div class="checkbox-row" id="full-row">
+        <input type="checkbox" id="full" />
+        <label for="full">Full Boilerplate</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="git" />
+        <label for="git">Initialize Git</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="github" />
+        <label for="github">Create GitHub Repo</label>
+      </div>
+    </div>
+
+    <div class="token-area" id="github-token-area">
+      <div id="token-section">
+        <div class="token-hint">
+          A GitHub Personal Access Token is required.<br><br>
+          <strong>How to get one:</strong><br>
+          1. Click the button below to open GitHub<br>
+          2. Give it a name like "dev-arch"<br>
+          3. Make sure "repo" scope is checked<br>
+          4. Click Generate token, copy and paste below
+        </div>
+        <button class="btn-github" onclick="vscode.postMessage({ command: 'openTokenPage' })">Open GitHub Token Page</button>
+        <input type="password" id="token-input" placeholder="Paste your token here" />
+        <button class="btn-save" onclick="saveToken()">Save Token Securely</button>
+      </div>
+      <div id="token-saved" style="display:none;">
+        <div class="token-saved-state">
+          <span class="token-badge">✓ Token saved</span>
+          <span style="font-size:12px; color: var(--vscode-descriptionForeground);">Stored securely in OS keychain</span>
+        </div>
+        <button class="btn-danger" onclick="deleteToken()">Remove Token</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="visibility-row" style="display:none;">
+    <div class="card-title">Repository</div>
+    <label>Visibility</label>
+    <select id="visibility">
+      <option value="public">Public</option>
+      <option value="private">Private</option>
     </select>
   </div>
-</div>
 
-<div class="section">
-  <div class="section-title">Options</div>
-  <div class="checkbox-group">
-    <div class="checkbox-row" id="tailwind-row"><input type="checkbox" id="tailwind" /><label>Add Tailwind CSS</label></div>
-    <div class="checkbox-row" id="full-row"><input type="checkbox" id="full" /><label>Full Boilerplate</label></div>
-    <div class="checkbox-row"><input type="checkbox" id="git" /><label>Initialize Git</label></div>
-    <div class="checkbox-row"><input type="checkbox" id="github" /><label>Create GitHub Repo</label></div>
+  <button class="btn-primary" id="createBtn" onclick="submit()">Create Project</button>
+
+  <div class="progress" id="progress">
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+    <div class="progress-text" id="progress-text">Setting up project structure...</div>
   </div>
 
-  <div class="token-area" id="github-token-area">
-    <div id="token-section">
-      <div class="token-hint">
-        A GitHub Personal Access Token is required.<br><br>
-        <strong>How to get one:</strong><br>
-        1. Click the button below to open GitHub<br>
-        2. Give it a name (e.g. "dev-arch")<br>
-        3. Make sure "repo" scope is checked<br>
-        4. Click "Generate token" and copy it<br>
-        5. Paste it below
-      </div>
-      <button onclick="vscode.postMessage({ command: 'openTokenPage' })" style="width:100%; margin-bottom:8px; padding: 6px; background: #238636; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">Open GitHub Token Page</button>
-      <input type="password" id="token-input" placeholder="Paste your token here" />
-      <button onclick="deleteToken()" style="width:100%; padding: 6px; background: #da3633; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">Remove Token</button>
+  <div class="success" id="success">
+    <div class="success-header">
+      <span class="success-icon">✅</span>
+      <span class="success-title">Project created successfully!</span>
     </div>
-    <div id="token-saved" style="display:none;">
-      <div class="token-hint">✓ GitHub token saved securely in OS keychain.</div>
-      <button class="btn-secondary" onclick="deleteToken()">Remove Token</button>
-    </div>
+    <div class="success-path" id="success-path"></div>
   </div>
+
+  <div class="error" id="error"></div>
+
 </div>
-
-<div class="section" id="visibility-row" style="display:none;">
-  <div class="section-title">Repository</div>
-  <label>Visibility</label>
-  <select id="visibility">
-    <option value="public">Public</option>
-    <option value="private">Private</option>
-  </select>
-</div>
-
-<button class="btn" id="createBtn" onclick="submit()">Create Project</button>
-
-<div class="progress" id="progress">
-  <div class="progress-bar"><div class="progress-fill"></div></div>
-  <div class="progress-text" id="progress-text">Creating project...</div>
-</div>
-
-<div class="success" id="success">
-  <div class="success-title">Project created successfully!</div>
-  <div class="success-path" id="success-path"></div>
-</div>
-
-<div class="error" id="error"></div>
 
 <script>
   const vscode = acquireVsCodeApi();
@@ -308,6 +639,7 @@ function getWebviewContent() {
     document.getElementById('progress').style.display = 'block';
     document.getElementById('success').style.display = 'none';
     document.getElementById('error').style.display = 'none';
+    document.getElementById('error').textContent = '';
 
     vscode.postMessage({
       command: 'create',
